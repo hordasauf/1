@@ -96,9 +96,9 @@ try:
     candles_15m = aggregate_candles(filled_data, '15M')
     candles_30m = aggregate_candles(filled_data, '30M')
 
-    candles_5m.to_csv(r'D:\EURUSD_5M.csv', index=False)
-    candles_15m.to_csv(r'D:\EURUSD_15M.csv', index=False)
-    candles_30m.to_csv(r'D:\EURUSD_30M.csv', index=False)
+    candles_5m.to_csv(r'D:\GBPJPY_5M.csv', index=False)
+    candles_15m.to_csv(r'D:\GBPJPY_15M.csv', index=False)
+    candles_30m.to_csv(r'D:\GBPJPY_30M.csv', index=False)
 
     print("5M Candles:")
     print(candles_5m.head())
@@ -117,7 +117,7 @@ except Exception as e:
 # Verification Script for Generated CSVs
 def verify_candle_files(directory):
     """Verify the consistency of the generated candle CSV files."""
-    files = ['EURUSD_5M.csv', 'EURUSD_15M.csv', 'EURUSD_30M.csv']
+    files = ['GBPJPY_5M.csv', 'GBPJPY_15M.csv', 'GBPJPY_30M.csv']
     for file in files:
         file_path = os.path.join(directory, file)
 
