@@ -636,7 +636,7 @@ def main():
 
         # Print prior data for verification
         print("\nPrior 1 Hour 5M Data:")
-        print(candles_5m[candles_5m['timestamp'] < analysis_date].tail(12))
+        print(candles_5m[candles_5m['timestamp'] < analysis_date].tail(24))
 
         print("\nPrior 5 Hours 15M Data:")
         print(candles_15m[candles_15m['timestamp'] < analysis_date].tail(20))
