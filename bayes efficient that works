@@ -26,6 +26,8 @@ warnings.filterwarnings('ignore')
 import json
 import numpy as np
 
+file_save_count = 0
+
 # Add this class definition before your functions
 class NumpyEncoder(json.JSONEncoder):
     """Special json encoder for numpy types"""
@@ -72,7 +74,7 @@ def calculate_trend_change_indicator(df, params):
     result = pd.Series(0, index=df.index)
 
     # Extract parameters
-    indicator_name = 'ker_5m'
+    indicator_name = 'ker_15m'
     upper_threshold = params.get('trend_change_upper_threshold', 0.6)
     lower_threshold = params.get('trend_change_lower_threshold', 0.6)
 
@@ -81,15 +83,15 @@ def calculate_trend_change_indicator(df, params):
     print(f"Available columns: {df.columns}")
 
     # Get the indicator name
-    indicator_name = 'ker_5m'
+    indicator_name = 'ker_15m'
     print(f"\nCalculating trend change signals using indicator: {indicator_name}")
 
     if indicator_name in df.columns:
         # For upward trend change: Current close > previous close
-        upward_condition = (df[indicator_name].shift(1) > upper_threshold) & (df[indicator_name] < lower_threshold) & (df['close'] > df['close'].shift(1))
+        upward_condition = (df[indicator_name].shift(1) > upper_threshold) & (df[indicator_name] < upper_threshold) & (df['close'] > df['close'].shift(1)) # Need to check
 
         # For downward trend change: Current close < previous close
-        downward_condition = (df[indicator_name].shift(1) > upper_threshold) & (df[indicator_name] < lower_threshold) & (df['close'] < df['close'].shift(1))
+        downward_condition = (df[indicator_name].shift(1) > upper_threshold) & (df[indicator_name] < upper_threshold) & (df['close'] < df['close'].shift(1)) # Need to check
 
         # Set signal to 1 for upward trend
         result[upward_condition] = 1
@@ -375,7 +377,7 @@ def calculate_future_values(df, params):
     results = df.copy()
 
     # Get future periods to calculate
-    future_periods = params.get('future_periods', [7])
+    future_periods = params.get('future_periods', [40])
 
     # Get which SMA to use for future calculation
     future_sma_tf = params.get('future_sma_tf', '5m')
@@ -423,7 +425,7 @@ def evaluate_binary_signal_performance(df, params):
         Dictionary with evaluation metrics
     """
     # Extract parameters
-    future_period = params.get('future_period', 7)
+    future_period = params.get('future_period', 10)
     future_sma_period = params.get('future_sma_period', 3)
     comparison_mode = params.get('comparison_mode', 'sma_vs_price')  # 'sma_vs_price' or 'sma_vs_sma'
     signal_column = params.get('signal_column', 'trend_change_signal')
@@ -564,7 +566,7 @@ def optimize_binary_signal_prediction(data_directory, output_directory, paramete
 
     # Define train and test periods
     if train_period is None:
-        train_start = datetime(2024, 10, 5)
+        train_start = datetime(2024, 10, 1)
         train_end = datetime(2024, 10, 15)
     else:
         train_start, train_end = train_period
@@ -650,6 +652,7 @@ def optimize_binary_signal_prediction(data_directory, output_directory, paramete
 
     # Define objective function
     def objective(params_list):
+        global     file_save_count
         # Add a start time for this iteration
         start_time = time.time()
 
@@ -676,7 +679,7 @@ def optimize_binary_signal_prediction(data_directory, output_directory, paramete
         # Calculate future values for prediction targets
         future_params = {
             'future_periods': [params['future_period']],
-            'future_sma_tf': '5m',
+            'future_sma_tf': '15m',
             'future_sma_period': params['future_sma_period']
         }
         full_data = calculate_future_values(indicators, future_params)
@@ -802,7 +805,7 @@ def optimize_binary_signal_prediction(data_directory, output_directory, paramete
     # Calculate future values for prediction targets
     future_params = {
         'future_periods': [best_params['future_period']],
-        'future_sma_tf': '5m',
+        'future_sma_tf': '15m',
         'future_sma_period': best_params['future_sma_period']
     }
     test_data = calculate_future_values(test_indicators, future_params)
@@ -886,9 +889,14 @@ def optimize_binary_signal_prediction(data_directory, output_directory, paramete
         plt.savefig(os.path.join(output_directory, f"signal_performance_{timestamp}.png"))
 
         # Save detailed signal data
+
+    max_saves = 1  # Or whatever limit makes sense
+
+    if file_save_count < max_saves:
         signal_file = os.path.join(output_directory, f"signal_details_{timestamp}.csv")
         signal_rows.to_csv(signal_file, index=False)
         print(f"Signal details saved to {signal_file}")
+        file_save_count += 1
 
     # Save test results
     test_result_file = os.path.join(output_directory, f"test_results_{timestamp}.json")
@@ -915,19 +923,21 @@ def main():
     # Create output directory if it doesn't exist
     os.makedirs(output_directory, exist_ok=True)
 
+
+
     # Set optimization parameters
     # Define train and test periods
-    train_period = (datetime(2024, 10, 1), datetime(2024, 10, 10))  # Use 2023 for training
-    test_period = (datetime(2024, 10, 11), datetime(2025, 3, 1))     # Test on 2024 data
+    train_period = (datetime(2024, 10, 1), datetime(2024, 10, 31))  # Use 2023 for training
+    test_period = (datetime(2024, 11, 1), datetime(2025, 3, 1))     # Test on 2024 data
 
     # Define parameter space for optimization
     parameter_space = {
         # Core required parameters
-        'sma_5m_period': (3),    # SMA period for 5m timeframe
+        'sma_15m_period': (3),    # SMA period for 5m timeframe
 
         # The indicators you want to test (pick just the 5 you're interested in)
         'trend_change_indicator1': [
-            'ker_5m',         # Keep only these 5 indicators
+            'ker_15m',         # Keep only these 5 indicators
             # 'kama_ratio_15m_30m',        # or whichever 5 you want
             # 'kama_ratio_5m_30m',         # to test
             # 'kama_ratio_5m_15m',
@@ -935,14 +945,14 @@ def main():
         ],
 
         # Your threshold parameters
-        'trend_change_upper_threshold': (0.6, 0.6),  # Range for upper threshold
-        'trend_change_lower_threshold': (0.6, 0.6),  # Range for lower threshold
+        'trend_change_upper_threshold': (0.5, 0.6),  # Range for upper threshold
+        'trend_change_lower_threshold': (0.5, 0.6),  # Range for lower threshold
 
         # Future prediction parameters (how far ahead to predict)
-        'future_period': [3, 6, 12],  # Look 15min, 30min, 60min ahead
+        'future_period': [9,18,27],  # Look 15min, 30min, 60min ahead
 
         # Required but can be fixed
-        'future_sma_period': [3],
+        'future_sma_period': [9],
         'comparison_mode': ['sma_vs_price'],
         'direction_after_signal': ['auto']
     }
@@ -952,7 +962,7 @@ def main():
         data_directory=data_directory,
         output_directory=output_directory,
         parameter_space=parameter_space,
-        n_calls=20,  # Number of optimization iterations (increase for better results)
+        n_calls=40,  # Number of optimization iterations (increase for better results)
         train_period=train_period,
         test_period=test_period,
         random_state=42
